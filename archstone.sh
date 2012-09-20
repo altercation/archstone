@@ -184,11 +184,14 @@ FSTAB_EOF
 umount ${MOUNT_PATH}${EFI_BOOT_PATH}
 
 cp "$0" "${MOUNT_PATH}/postchroot.sh"
-echo "arch-chroot ${MOUNT_PATH} and continue with /postchroot.sh"
+
+echo -e "\narch-chroot ${MOUNT_PATH} then continue with /postchroot.sh"
 exit
+
 #arch-chroot ${MOUNT_PATH} <<EOF
 #/postchroot.sh
 #EOF
+
 #rm ${MOUNT_PATH}/postchroot.sh
 #echo "end of script"
 #exit
