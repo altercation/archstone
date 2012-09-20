@@ -1,0 +1,49 @@
+
+GummibootExtra () {
+modprobe efivars
+modprobe dm-mod
+pacman -S --noconfirm wget efibootmgr gummiboot-efi-x86_64
+
+cp /boot/vmlinuz-linux /boot/efi/EFI/arch/vmlinuz-arch.efi
+cp /boot/initramfs-linux.img /boot/efi/EFI/arch/initramfs-arch.img
+cp /boot/initramfs-linux-fallback.img /boot/efi/EFI/arch/initramfs-arch-fallback.img
+#mkdir -p ${EFI_BOOT_PATH}/loader/entries
+
+exit
+
+efibootmgr -c -l '\EFI\arch\gummiboot\gummibootx64.efi\' -L "Arch Linux"
+
+cat >> ${EFI_BOOT_PATH}/loader/default.conf <<GUMMILOADER
+default arch
+timeout 4
+GUMMILOADER
+cat >> ${EFI_BOOT_PATH}/loader/entries/arch.conf <<GUMMIENTRIES
+title          Arch Linux
+efi            \\EFI\\arch\\vmlinuz-arch.efi
+options        initrd=\\EFI\\arch\initramfs-arch.img cryptdevice=/dev/sda3:${LABEL_ROOT_CRYPT} root=/dev/mapper/${LABEL_ROOT_CRYPT} ro rootfstype=ext4 
+GUMMIENTRIES
+
+# TODO: copy default or ? loader.conf
+mv /boot/efi/loader/loader.conf /boot/efi/loader/loader.conf.orig
+cp /boot/efi/loader/default.conf /boot/efi/loader/loader.conf
+}
+
+
+Install_Bootloader_Refind () {
+modprobe efivars
+modprobe dm-mod
+pacman --noconfirm -S refind-efi-x86_64 efibootmgr
+cp /boot/vmlinuz-linux /boot/efi/EFI/arch/vmlinuz-arch.efi
+cp /boot/initramfs-linux.img /boot/efi/EFI/arch/initramfs-arch.img
+cp /boot/initramfs-linux-fallback.img /boot/efi/EFI/arch/initramfs-arch-fallback.img
+echo "cryptdevice=/dev/sda3:${LABEL_ROOT_CRYPT} root=/dev/mapper/${LABEL_ROOT_CRYPT} rootfstype=ext4 add_efi_memmap initrd=\EFI\arch\initramfs-arch.img" > /boot/efi/EFI/arch/linux.conf
+cat >> /boot/efi/EFI/arch/refind_linux.conf <<'REFINDCONF'
+"Boot to X"          "cryptdevice=/dev/sda3:${LABEL_ROOT_CRYPT} root=/dev/mapper/${LABEL_ROOT_CRYPT} ro rootfstype=ext4 systemd.unit=graphical.target"
+"Boot to console"    "cryptdevice=/dev/sda3:${LABEL_ROOT_CRYPT} root=/dev/mapper/${LABEL_ROOT_CRYPT} ro rootfstype=ext4 systemd.unit=multi-user.target"
+REFINDCONF
+efibootmgr --create --gpt --disk /dev/sda --part 1 --write-signature --label "ARCH LINUX (rEFInd)" --loader "Arch Linux (rEFInd)" -l '\\EFI\\arch\\refind\\refindx64.efi'
+mkdir /boot/efi/EFI/boot
+cp -r /boot/efi/EFI/arch/refind/* /boot/efi/EFI/boot/
+mv /boot/efi/EFI/boot/refindx64.efi /boot/efi/EFI/boot/bootx64.efi
+}
+

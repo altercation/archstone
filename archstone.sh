@@ -262,8 +262,8 @@ mkinitcpio -p linux
 
 modprobe efivars
 modprobe dm-mod
-pacman -S --noconfirm wget efibootmgr gummiboot-efi-x86_64
-#AURInstall gummiboot-efi-x86_64 #gummiboot in extra now
+pacman -S --noconfirm wget efibootmgr #gummiboot-efi-x86_64
+AURInstall gummiboot-efi-x86_64 #gummiboot in extra now
 install -Dm0644 /usr/lib/gummiboot/gummiboot.efi \
 /boot/efi/EFI/arch/gummiboot.efi
 install -Dm0644 /usr/lib/gummiboot/gummiboot.efi \
@@ -290,5 +290,5 @@ GUMMIENTRIES
 # 10 POSTFLIGHT
 # ------------------------------------------------------------------------
 
-umount $EFI_BOOT_PATH
-exit
+#umount $EFI_BOOT_PATH
+#exit
