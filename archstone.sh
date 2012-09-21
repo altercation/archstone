@@ -26,6 +26,8 @@ USERSHELL=/bin/bash
 set -o nounset
 set -o errexit
 
+HR=-----------------------------------------------------------------------
+
 SetValue () { VALUENAME="$1" NEWVALUE="$2" FILEPATH="$3"; 
 sed -i "s+^#\?\(${VALUENAME}\)=.*$+\1=${NEWVALUE}+" "${FILEPATH}"; }
 
@@ -262,7 +264,7 @@ sed -i "s/\(^HOOKS.*\) filesystems \(.*$\)/\1 ${HOOKS} \2/" \
 #set -e
 mkinitcpio -p linux
 echo "mkinitcpio returned $?"
-read "continue..."
+read -sn 1 -p "any key to continue..."
 #set +e
 
 # ------------------------------------------------------------------------
