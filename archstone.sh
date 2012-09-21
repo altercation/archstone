@@ -24,7 +24,7 @@ USERSHELL=/bin/bash
 # ------------------------------------------------------------------------
 
 set -o nounset
-#set -o errexit
+set -o errexit
 
 SetValue () { VALUENAME="$1" NEWVALUE="$2" FILEPATH="$3"; 
 sed -i "s+^#\?\(${VALUENAME}\)=.*$+\1=${NEWVALUE}+" "${FILEPATH}"; }
@@ -50,12 +50,12 @@ Install () { pacman -S --noconfirm "$@"; }
 AURInstall () {
 command -v wget >/dev/null 2>&1 || Install wget
 if command -v packer >/dev/null 2>&1; then
-packer -S --noconfirm "$1"
+packer -S --noconfirm "$@"
 else
 pkg=packer
 orig="$(pwd)"; mkdir -p /tmp/${pkg}; cd /tmp/${pkg};
 wget "https://aur.archlinux.org/packages/${pkg}/${pkg}.tar.gz";
-tar -xzvf ${1}.tar.gz; cd ${pkg}; makepkg --asroot -si;
+tar -xzvf ${pkg}.tar.gz; cd ${pkg}; makepkg --asroot -si;
 cd "$orig"; rm -rf /tmp/${pkg}; 
 packer -S --noconfirm "$@"
 fi
@@ -170,20 +170,11 @@ CRYPTTAB_EOF
 cat > ${MOUNT_PATH}/etc/fstab <<FSTAB_EOF
 # /etc/fstab: static file system information
 #
-# <file system>					<dir>		<type>	\
-<options>				<dump>	<pass>
-
-tmpfs						/tmp		tmpfs	\
-nodev,nosuid				0	0
-
-/dev/mapper/${LABEL_ROOT_CRYPT}			/      		ext4	\
-rw,relatime,data=ordered,discard	0	1
-
-/dev/disk/by-partlabel/${LABEL_BOOT_EFI}	$EFI_BOOT_PATH	vfat	\
-rw,relatime,discard			0	2
-
-/dev/mapper/${LABEL_SWAP_CRYPT}			none		swap	\
-defaults,discard			0	0
+# <file system>					<dir>		<type>	<options>				<dump>	<pass>
+tmpfs						/tmp		tmpfs	nodev,nosuid				0	0
+/dev/mapper/${LABEL_ROOT_CRYPT}			/      		ext4	rw,relatime,data=ordered,discard	0	1
+/dev/disk/by-partlabel/${LABEL_BOOT_EFI}	$EFI_BOOT_PATH	vfat	rw,relatime,discard			0	2
+/dev/mapper/${LABEL_SWAP_CRYPT}			none		swap	defaults,discard			0	0
 FSTAB_EOF
 
 # ------------------------------------------------------------------------
@@ -221,7 +212,7 @@ fi
 mount -t vfat ${DRIVE}${PARTITION_EFI_BOOT} ${EFI_BOOT_PATH}
 
 # ------------------------------------------------------------------------
-# language
+# LANGUAGE
 # ------------------------------------------------------------------------
 UncommentValue ${LANGUAGE} /etc/locale.gen
 locale-gen
@@ -249,7 +240,7 @@ echo ${HOSTNAME} > /etc/hostname
 sed -i "s/localhost\.localdomain/${HOSTNAME}/g" /etc/hosts
 
 # ------------------------------------------------------------------------
-# 7 NETWORK
+# NETWORK
 # ------------------------------------------------------------------------
 #Install wireless_tools netcfg wpa_supplicant wpa_actiond dialog
 #AddToList net-auto-wireless DAEMONS /etc/rc.conf
@@ -258,7 +249,7 @@ Install iw wpa_supplicant wpa_actiond
 AddToList net-auto-wireless DAEMONS /etc/rc.conf
 
 # ------------------------------------------------------------------------
-# 8 RAMDISK
+# RAMDISK
 # ------------------------------------------------------------------------
 
 # NOTE: intel_agp drm and i915 for intel graphics
@@ -268,7 +259,11 @@ sed -i "s/^MODULES.*$/MODULES=\"${MODULES}\"/" /etc/mkinitcpio.conf
 sed -i "s/\(^HOOKS.*\) filesystems \(.*$\)/\1 ${HOOKS} \2/" \
 /etc/mkinitcpio.conf
 
+#set -e
 mkinitcpio -p linux
+echo "mkinitcpio returned $?"
+read "continue..."
+#set +e
 
 # ------------------------------------------------------------------------
 # 9 BOOTLOADER
@@ -357,11 +352,11 @@ visudo -qcsf /tmp/sudoers.edit && cat /tmp/sudoers.edit > /etc/sudoers
 
 # power
 # ------------------------------------------------------------------------
-Install acpi acpid acpitool cpufrequtils powertop
-sed -i "/^DAEMONS/ s/)/ @acpid)/" /etc/rc.conf
-sed -i "/^MODULES/ s/)/ acpi-cpufreq cpufreq_ondemand cpufreq_powersave coretemp)/" /etc/rc.conf
+Install acpi acpid cpupower powertop
+#sed -i "/^DAEMONS/ s/)/ @acpid)/" /etc/rc.conf
+#sed -i "/^MODULES/ s/)/ acpi-cpufreq cpufreq_ondemand cpufreq_powersave coretemp)/" /etc/rc.conf
 # following requires my acpi handler script
-echo "/etc/acpi/handler.sh boot" > /etc/rc.local
+#echo "/etc/acpi/handler.sh boot" > /etc/rc.local
 #TODO: https://wiki.archlinux.org/index.php/Acpi - review this
 
 # wireless (wpa supplicant should already be installed)
