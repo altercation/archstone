@@ -15,9 +15,13 @@
 HOSTNAME=tau
 FONT=Lat2-Terminus16
 LANGUAGE=en_US.UTF-8
+KEYMAP=us
 TIMEZONE=US/Pacific
 USERNAME=es # not used yet
 USERSHELL=/bin/bash
+
+MODULES="dm_mod dm_crypt aes_x86_64 ext2 ext4 vfat intel_agp drm i915"
+HOOKS="usb usbinput consolefont encrypt filesystems"
 
 # ------------------------------------------------------------------------
 # 0 SCRIPT SETTINGS AND HELPER FUNCTIONS
@@ -50,20 +54,22 @@ blkid ${DRIVE}${PARTITION_CRYPT_SWAP} \
 Install () { pacman -S --noconfirm "$@"; }
 
 AURInstall () {
-command -v wget >/dev/null 2>&1 || Install wget
 if command -v packer >/dev/null 2>&1; then
 packer -S --noconfirm "$@"
 else
 pkg=packer
 orig="$(pwd)"; mkdir -p /tmp/${pkg}; cd /tmp/${pkg};
+command -v wget >/dev/null 2>&1 || Install wget
+command -v git >/dev/null 2>&1 || Install git
+command -v jshon >/dev/null 2>&1 || Install jshon
 wget "https://aur.archlinux.org/packages/${pkg}/${pkg}.tar.gz";
-tar -xzvf ${pkg}.tar.gz; cd ${pkg}; makepkg --asroot -si;
+tar -xzvf ${pkg}.tar.gz; cd ${pkg}; makepkg --asroot -si --noconfirm;
 cd "$orig"; rm -rf /tmp/${pkg}; 
 packer -S --noconfirm "$@"
 fi
 }
 
-
+AnyKey () { read -sn 1 -p "$@"; }
 
 # ------------------------------------------------------------------------
 # 1 PREFLIGHT
@@ -187,21 +193,15 @@ FSTAB_EOF
 umount ${MOUNT_PATH}${EFI_BOOT_PATH}
 
 cp "$0" "${MOUNT_PATH}/postchroot.sh"
-
-echo -e "\narch-chroot ${MOUNT_PATH} then continue with /postchroot.sh"
+arch-chroot ${MOUNT_PATH} <<EOF
+/postchroot.sh
+EOF
 exit
-
-#arch-chroot ${MOUNT_PATH} <<EOF
-#/postchroot.sh
-#EOF
-
-#rm ${MOUNT_PATH}/postchroot.sh
-#echo "end of script"
+#echo -e "\narch-chroot ${MOUNT_PATH} then continue with /postchroot.sh"
 #exit
-#unmount /mnt/boot/efi
-#unmount /mnt
-#reboot
 fi
+
+
 
 ##########################################################################
 # START SECOND RUN SECTION (POST CHROOT)
@@ -221,7 +221,7 @@ locale-gen
 echo LANG=${LANGUAGE} > /etc/locale.conf
 export LANG=${LANGUAGE}
 cat > /etc/vconsole.conf <<VCONSOLECONF
-KEYMAP=
+KEYMAP=${KEYMAP}
 FONT=${FONT}
 FONT_MAP=
 VCONSOLECONF
@@ -255,24 +255,24 @@ AddToList net-auto-wireless DAEMONS /etc/rc.conf
 # ------------------------------------------------------------------------
 
 # NOTE: intel_agp drm and i915 for intel graphics
-MODULES="dm_mod dm_crypt aes_x86_64 ext2 ext4 vfat intel_agp drm i915"
-HOOKS="usb usbinput consolefont encrypt filesystems"
 sed -i "s/^MODULES.*$/MODULES=\"${MODULES}\"/" /etc/mkinitcpio.conf
 sed -i "s/\(^HOOKS.*\) filesystems \(.*$\)/\1 ${HOOKS} \2/" \
 /etc/mkinitcpio.conf
 
-#set -e
 mkinitcpio -p linux
-echo "mkinitcpio returned $?"
-read -sn 1 -p "any key to continue..."
-#set +e
 
 # ------------------------------------------------------------------------
 # 9 BOOTLOADER
 # ------------------------------------------------------------------------
 
-modprobe efivars
-modprobe dm-mod
+set -o verbose
+
+# we've already done this above... i need to remove one or the other
+#set -e
+#modprobe efivars
+#modprobe dm-mod
+#set +e
+
 Install wget efibootmgr #gummiboot-efi-x86_64
 AURInstall gummiboot-efi-x86_64 #gummiboot in extra now
 install -Dm0644 /usr/lib/gummiboot/gummiboot.efi \
@@ -431,7 +431,7 @@ Install terminus-font
 AURInstall webcore-fonts
 AURInstall libspiro
 AURInstall fontforge
-${AURHELPER} -S freetype2-git-infinality # will prompt for freetype2 replacement
+packer -S freetype2-git-infinality # will prompt for freetype2 replacement
 # TODO: sed infinality and change to OSX or OSX2 mode
 #	and create the sym link from /etc/fonts/conf.avail to conf.d
 
@@ -463,6 +463,8 @@ Install zip # for pent buftabs
 mkdir -p /home/${USERNAME}/.pentadactyl/plugins && ln -sf /usr/share/aurora-pentadactyl-buftabs/buftabs.js /home/${USERNAME}/.pentadactyl/plugins/buftabs.js
 
 }
+
+#EOF
 
 #umount $EFI_BOOT_PATH
 #exit
